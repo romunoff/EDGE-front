@@ -18,7 +18,7 @@
   ],
   "rules": {
     "@typescript-eslint/no-explicit-any": "warn",
-    "linebreak-style": ["error", "windows"],
+    "linebreak-style": ["error", "unix"],
     "max-len": ["error", 120],
     "no-console": "error",
     "no-debugger": "error",
