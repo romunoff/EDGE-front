@@ -2,6 +2,7 @@ import * as path from 'path';
 import HtmlWebpackPlugin from 'html-webpack-plugin';
 import { Configuration, HotModuleReplacementPlugin } from 'webpack';
 import 'webpack-dev-server';
+import MiniCssExtractPlugin from 'mini-css-extract-plugin';
 
 const webpackConfig: Configuration = {
   mode: 'development',
@@ -13,11 +14,17 @@ const webpackConfig: Configuration = {
   devServer: {
     port: 3000,
   },
+  resolve: {
+    extensions: ['.ts', '.js'],
+  },
   plugins: [
+    new HotModuleReplacementPlugin(),
     new HtmlWebpackPlugin({
       template: './public/index.html',
     }),
-    new HotModuleReplacementPlugin(),
+    new MiniCssExtractPlugin({
+      filename: 'styles.css',
+    }),
   ],
   module: {
     rules: [
@@ -25,6 +32,10 @@ const webpackConfig: Configuration = {
         exclude: /node_modules/,
         use: 'ts-loader',
         test: /\.ts$/,
+      },
+      {
+        use: [{ loader: MiniCssExtractPlugin.loader }, 'css-loader', 'sass-loader'],
+        test: /\.scss$/,
       },
     ],
   },
