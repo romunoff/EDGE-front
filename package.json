@@ -7,9 +7,13 @@
     "start": "webpack serve"
   },
   "devDependencies": {
+    "@types/cannon": "^0.1.8",
     "@types/three": "^0.149.0",
     "@typescript-eslint/eslint-plugin": "^5.54.1",
     "@typescript-eslint/parser": "^5.54.1",
+    "cannon": "^0.6.2",
+    "cannon-es": "^0.20.0",
+    "cannon-es-debugger": "^1.0.0",
     "css-loader": "^6.7.3",
     "eslint": "^8.35.0",
     "eslint-config-prettier": "^8.7.0",
