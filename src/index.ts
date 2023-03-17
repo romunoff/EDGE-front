@@ -1,17 +1,21 @@
-import scene from './configs/config-scenes';
 import perspectiveCamera from './configs/config-cameras';
 import webGLRenderer from './configs/config-renderers';
-import BasicCube from './models/BasicCube/BasicCube';
 import './index.scss';
+import { SceneManager } from './models/SceneManager/SceneManager';
+import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 const root = document.getElementById('root');
 root?.appendChild(webGLRenderer.domElement);
 
+const controls = new OrbitControls(perspectiveCamera, webGLRenderer.domElement);
+const scene = new SceneManager();
+scene.init();
+
 const animate = () => {
   requestAnimationFrame(animate);
 
-  BasicCube.rotation.x += 0.01;
-  BasicCube.rotation.y += 0.01;
+  scene.update();
+  controls.update();
 
   webGLRenderer.render(scene, perspectiveCamera);
 };
