@@ -1,14 +1,34 @@
-import { AxesHelper, CameraHelper, DirectionalLight, DirectionalLightHelper, PerspectiveCamera, Scene } from 'three';
+import { AxesHelper, DirectionalLight, Scene } from 'three';
 import BasicCube from '../BasicCube/BasicCube';
-import perspectiveCamera from '../../configs/config-cameras';
+import { Body, Box, Plane, Vec3, World } from 'cannon-es';
+import CannonDebugger from 'cannon-es-debugger';
 
 export class SceneManager extends Scene {
+  private readonly world: World;
+  private readonly cannonDebugger;
   // private readonly camera: PerspectiveCamera;
   private readonly keyDown = new Set<string>();
   // { up, down, left, right }
 
   constructor() {
     super();
+
+    this.world = new World();
+    this.world.gravity.set(0, -9.82, 0);
+
+    this.cannonDebugger = CannonDebugger(this, this.world, {
+      color: 0xff0000,
+    });
+  }
+
+  private getBox() {
+    const boxBody = new Body({
+      mass: 1,
+      shape: new Box(new Vec3(0.5, 0.5, 0.5)),
+    });
+    boxBody.position.set(0, 7, 0);
+
+    return boxBody;
   }
 
   init() {
@@ -19,14 +39,31 @@ export class SceneManager extends Scene {
     light.position.set(0, 0, 0);
     this.add(light);
 
-    // this.add(BasicCube);
+    // Add Plane
+    const groundBody = new Body({
+      type: Body.STATIC,
+      shape: new Plane(),
+    });
+    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
+    this.world.addBody(groundBody);
+
+    // Add Box physics
+    this.world.addBody(this.getBox());
+
+    // Add Box
+    this.add(BasicCube);
 
     document.addEventListener('keydown', this.handleKeyDown);
     document.addEventListener('keyup', this.handleKeyUp);
   }
 
   update() {
+    this.world.step(1 / 60);
+    this.cannonDebugger.update();
     this.updateInput();
+
+    BasicCube.position.copy(this.world.getBodyById(1).position as any);
+    BasicCube.quaternion.copy(this.world.getBodyById(1).quaternion as any);
   }
 
   private handleKeyDown = (event: KeyboardEvent) => {
@@ -43,19 +80,19 @@ export class SceneManager extends Scene {
 
   private updateInput() {
     if (this.keyDown.has('w')) {
-      BasicCube.position.x += 1;
+      this.world.getBodyById(1).position.x += 1;
     }
 
     if (this.keyDown.has('s')) {
-      BasicCube.position.x -= 1;
+      this.world.getBodyById(1).position.x -= 1;
     }
 
     if (this.keyDown.has('a')) {
-      BasicCube.position.z -= 1;
+      this.world.getBodyById(1).position.z -= 1;
     }
 
     if (this.keyDown.has('d')) {
-      BasicCube.position.z += 1;
+      this.world.getBodyById(1).position.z += 1;
     }
   }
 }

@@ -15,7 +15,7 @@ const webpackConfig: Configuration = {
     port: 3000,
   },
   resolve: {
-    extensions: ['.ts', '.js'],
+    extensions: ['.ts'],
   },
   plugins: [
     new HotModuleReplacementPlugin(),
