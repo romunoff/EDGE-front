@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "@types/cannon": "^0.1.8",
+    "@types/socket.io-client": "^3.0.0",
     "@types/three": "^0.149.0",
     "@typescript-eslint/eslint-plugin": "^5.54.1",
     "@typescript-eslint/parser": "^5.54.1",
@@ -22,6 +23,7 @@
     "node-sass": "^8.0.0",
     "prettier": "^2.8.4",
     "sass-loader": "^13.2.0",
+    "socket.io-client": "^4.6.1",
     "three": "^0.150.1",
     "ts-loader": "^9.4.2",
     "ts-node": "^10.9.1",
