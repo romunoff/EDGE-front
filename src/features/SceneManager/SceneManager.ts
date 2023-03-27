@@ -12,8 +12,8 @@ import {
 import { Body, Box, Plane, Vec3, World } from 'cannon-es';
 import CannonDebugger from 'cannon-es-debugger';
 import io from 'socket.io-client';
+import { PlayerGeometry } from '../../entities/Player/PlayerGeometry';
 import { Player } from '../../entities/Player/Player';
-import { PlayerPosition } from '../../entities/Player/PlayerPosition';
 
 export class SceneManager {
   private readonly scene: Scene;
@@ -21,7 +21,7 @@ export class SceneManager {
   private readonly cannonDebugger;
   private readonly socket;
 
-  private readonly activePlayers = new Set<Player>();
+  private readonly activePlayers = new Set<PlayerGeometry>();
 
   private playerBody?: Body;
   private playerGeometry?: Mesh;
@@ -70,7 +70,7 @@ export class SceneManager {
     this.world.step(1 / 60);
     this.cannonDebugger.update();
 
-    this.activePlayers.forEach((activePlayer: Player) => {
+    this.activePlayers.forEach((activePlayer: PlayerGeometry) => {
       activePlayer.geometry?.position.copy(activePlayer.body?.position as any);
       activePlayer.geometry?.quaternion.copy(activePlayer.body?.quaternion as any);
     });
@@ -96,12 +96,12 @@ export class SceneManager {
           break;
       }
 
-      this.socket.emit('setPlayerPosition', this.playerBody.position);
+      this.socket.emit('setPlayer', this.playerBody.position);
     }
   };
 
   private handleSocketConnection() {
-    this.socket.on('getPlayerInfo', (player: PlayerPosition) => {
+    this.socket.on('getPlayer', (player: Player) => {
       this.playerBody = new Body({
         mass: 1,
         shape: new Box(new Vec3(0.5, 0.5, 0.5)),
@@ -116,7 +116,7 @@ export class SceneManager {
       this.scene.add(this.playerGeometry);
     });
 
-    this.socket.on('joinPlayer', (player: PlayerPosition) => {
+    this.socket.on('joinPlayer', (player: Player) => {
       const newPlayerBody = new Body({
         mass: 1,
         shape: new Box(new Vec3(0.5, 0.5, 0.5)),
@@ -133,7 +133,7 @@ export class SceneManager {
       this.activePlayers.add({ id: player.id, body: newPlayerBody, geometry: newPlayerGeometry });
     });
 
-    this.socket.on('getActivePlayers', (players: PlayerPosition[]) => {
+    this.socket.on('getActivePlayers', (players: Player[]) => {
       players.forEach((player) => {
         if (player.id !== this.socket.id) {
           const newPlayerBody = new Body({
@@ -154,7 +154,7 @@ export class SceneManager {
       });
     });
 
-    this.socket.on('getPlayers', (players: PlayerPosition[]) => {
+    this.socket.on('getPlayers', (players: Player[]) => {
       players.forEach((player) => {
         this.activePlayers.forEach((activePlayer) => {
           if (player.id === activePlayer.id) {
@@ -165,7 +165,7 @@ export class SceneManager {
     });
 
     this.socket.on('disconnectPlayer', (id: string) => {
-      this.activePlayers.forEach((activePlayer: Player) => {
+      this.activePlayers.forEach((activePlayer: PlayerGeometry) => {
         if (activePlayer.id === id) {
           activePlayer.body && this.world.removeBody(activePlayer.body);
           activePlayer.geometry && this.scene.remove(activePlayer.geometry);
