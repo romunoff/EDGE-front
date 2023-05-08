@@ -1,5 +1,4 @@
-export interface Player {
-  id: string;
+export interface Finish {
   position: {
     x: number;
     y: number;
