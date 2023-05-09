@@ -20,6 +20,7 @@ import { PlayerGeometry } from '../../entities/Player/PlayerGeometry';
 import { Player } from '../../entities/Player/Player';
 import { Finish } from '../../entities/Finish/Finish';
 import Galaxy from '../../../public/images/galaxy.png';
+import { getWalls } from '../../utils/level-helpers';
 
 export class SceneManager {
   private readonly scene: Scene;
@@ -29,6 +30,7 @@ export class SceneManager {
   private readonly socket;
 
   private readonly activePlayers = new Set<PlayerGeometry>();
+  private readonly wallBodies = new Array<Body>();
 
   private playerBody?: Body;
   private playerGeometry?: Mesh;
@@ -40,7 +42,7 @@ export class SceneManager {
     this.scene = new Scene();
     this.world = new World();
     this.textureLoader = new TextureLoader();
-    this.world.gravity.set(0, -9.82, 0);
+    this.world.gravity.set(0, -98.2, 0);
     this.cannonDebugger = CannonDebugger(this.scene, this.world, { color: 'grey' });
     this.socket = io('http://localhost:8080');
   }
@@ -54,8 +56,14 @@ export class SceneManager {
     this.scene.add(axesHelper);
 
     const light = new DirectionalLight('white');
-    light.position.set(-10, 10, 0);
+    light.position.set(-10, 25, 10);
     light.castShadow = true;
+    light.shadow.camera.left = -12.5;
+    light.shadow.camera.right = 12.5;
+    light.shadow.camera.top = 12.5;
+    light.shadow.camera.bottom = -12.5;
+    light.shadow.camera.near = 0.5;
+    light.shadow.camera.far = 500;
     this.scene.add(light);
 
     const lightHelper = new DirectionalLightHelper(light, 3);
@@ -68,7 +76,10 @@ export class SceneManager {
     planeBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0);
     this.world.addBody(planeBody);
 
-    const plane = new Mesh(new PlaneGeometry(10, 10), new MeshLambertMaterial({ color: 'white', side: DoubleSide }));
+    const plane = new Mesh(
+      new PlaneGeometry(25, 25),
+      new MeshLambertMaterial({ color: 'lightgrey', side: DoubleSide }),
+    );
     plane.rotateX(-Math.PI / 2);
     plane.receiveShadow = true;
     this.scene.add(plane);
@@ -82,6 +93,22 @@ export class SceneManager {
       }),
     );
     this.scene.add(galaxy);
+
+    const wallPositions = getWalls();
+    for (const position of wallPositions) {
+      const wall = new Mesh(new BoxGeometry(), new MeshLambertMaterial({ color: 'grey' }));
+      wall.position.copy(position);
+      wall.castShadow = true;
+      this.scene.add(wall);
+
+      const wallBody = new Body({
+        type: Body.STATIC,
+        position: new Vec3(position.x, position.y, position.z),
+        shape: new Box(new Vec3(0.5, 0.5, 0.5)),
+      });
+      this.wallBodies.push(wallBody);
+      this.world.addBody(wallBody);
+    }
 
     this.handleSocketConnection();
     document.addEventListener('keydown', this.handleKeyDown);
@@ -100,24 +127,38 @@ export class SceneManager {
     this.playerGeometry?.quaternion.copy(this.playerBody?.quaternion as any);
   }
 
+  private checkWallCollision(newPosition: Vec3): boolean {
+    for (let i = 0; i < this.wallBodies.length; i++) {
+      if (newPosition.distanceTo(this.wallBodies[i].position) < 1) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   private handleKeyDown = (event: KeyboardEvent) => {
     if (!this.isWinnerExists && this.playerBody) {
+      const newPosition: Vec3 = this.playerBody.position.clone();
+
       switch (event.key.toLowerCase()) {
         case 'w':
-          this.playerBody.position.x += 1;
+          newPosition.x += 1;
           break;
         case 'a':
-          this.playerBody.position.z -= 1;
+          newPosition.z -= 1;
           break;
         case 's':
-          this.playerBody.position.x -= 1;
+          newPosition.x -= 1;
           break;
         case 'd':
-          this.playerBody.position.z += 1;
+          newPosition.z += 1;
           break;
       }
 
-      this.socket.emit('setPlayer', this.playerBody.position);
+      if (!this.checkWallCollision(newPosition)) {
+        this.playerBody.position.copy(newPosition);
+        this.socket.emit('setPlayer', this.playerBody.position);
+      }
     }
   };
 
@@ -134,7 +175,7 @@ export class SceneManager {
 
     this.socket.on('getPlayer', (player: Player) => {
       this.playerBody = new Body({
-        mass: 1,
+        mass: 0,
         shape: new Box(new Vec3(0.5, 0.5, 0.5)),
         collisionFilterGroup: 2,
         collisionFilterMask: 1,
@@ -151,7 +192,7 @@ export class SceneManager {
 
     this.socket.on('joinPlayer', (player: Player) => {
       const newPlayerBody = new Body({
-        mass: 1,
+        mass: 0,
         shape: new Box(new Vec3(0.5, 0.5, 0.5)),
         collisionFilterGroup: 2,
         collisionFilterMask: 1,
@@ -172,7 +213,7 @@ export class SceneManager {
       players.forEach((player) => {
         if (player.id !== this.socket.id) {
           const newPlayerBody = new Body({
-            mass: 1,
+            mass: 0,
             shape: new Box(new Vec3(0.5, 0.5, 0.5)),
             collisionFilterGroup: 2,
             collisionFilterMask: 1,
@@ -201,21 +242,34 @@ export class SceneManager {
       });
     });
 
-    this.socket.on('getWinner', (id: string) => {
+    this.socket.on('getWinner', (name: string) => {
       this.isWinnerExists = true;
 
-      // Create a new div
-      const winnerDiv = document.createElement('div');
-      winnerDiv.textContent = `Player ${id} win!`;
-      winnerDiv.style.position = 'absolute';
-      winnerDiv.style.top = '10px';
-      winnerDiv.style.left = '10px';
-      winnerDiv.style.padding = '10px';
-      winnerDiv.style.backgroundColor = 'white';
-      winnerDiv.style.border = '1px solid black';
-      winnerDiv.style.zIndex = '1000'; // Ensure the div is on top of the scene
+      const popup = document.createElement('div');
+      popup.id = 'winnerDiv';
+      popup.textContent = `${name} win!`;
 
-      document.body.appendChild(winnerDiv);
+      popup.style.position = 'fixed';
+      popup.style.top = '-50px';
+      popup.style.left = '0';
+      popup.style.right = '0';
+      popup.style.height = '50px';
+      popup.style.padding = '10px';
+      popup.style.textAlign = 'center';
+      popup.style.backgroundColor = '#4caf50';
+      popup.style.color = 'white';
+      popup.style.border = '1px solid #4caf50';
+      popup.style.boxShadow = '0px 2px 15px rgba(0,0,0,0.1)';
+      popup.style.fontSize = '20px';
+      popup.style.lineHeight = '50px';
+      popup.style.zIndex = '1000';
+      popup.style.transition = 'top 0.5s ease-in-out';
+
+      document.body.appendChild(popup);
+
+      setTimeout(() => {
+        popup.style.top = '0';
+      }, 100);
     });
 
     this.socket.on('disconnectPlayer', (id: string) => {
